@@ -1,21 +1,84 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// Modelo de exemplo — apague/renomeie quando começar um projeto de verdade.
-// Mantido só para provar que Prisma + migrations estão funcionando de ponta a ponta.
-model Item {
+model Tenant {
   id        String   @id @default(uuid())
   name      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@map("items")
+  users       User[]
+  roles       Role[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  roles UserRole[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@unique([name, tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  id     String @id @default(uuid())
+  action String @unique // ex: "users:read", "tenants:manage"
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
